@@ -2,7 +2,7 @@
 <html xmlns="http://www.w3.org/1999/xhtml">
 <head>
 <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
-<title id="title">05221014 坂宮丞太郎</title>
+<title id="title">CG論 M1</title>
 <script src="https://rawcdn.githack.com/toji/gl-matrix/v3.3.0/dist/gl-matrix-min.js"></script>
 <script src="https://bbcdn.githack.com/kenshi84/legacygl.js/raw/master/gl-matrix-util.js"></script>
 <script src="https://bbcdn.githack.com/kenshi84/legacygl.js/raw/master/legacygl.js"></script>
@@ -16,11 +16,37 @@ var canvas;
 var legacygl;
 var drawutil;
 var camera;
-var p0, p1, p2;
+var points;
 var selected = null;
 
-function eval_quadratic_bezier(p0, p1, p2, t) {
-    return vec2.scaleAndAdd_ip(vec2.scaleAndAdd_ip(vec2.scale([], p0, (1 - t)*(1 - t)), p1, 2*t*(1 - t)), p2, t*t);    // TODO
+// calculate nCr
+function fact(n) {
+    if (n <= 1) {
+        return 1;
+    } else {
+        return n * fact(n - 1);
+    }
+}
+function nCr(n, r) {
+    return fact(n) / (fact(n - r) * fact(r));
+}
+
+// calculate t^i
+function pow(t, n) {
+    if (n === 0) {
+        return 1;
+    }
+    return t * pow(t, n - 1);
+}
+
+function eval_quadratic_bezier(points, t) {
+    var bezier = [0, 0]
+    var n = points.length - 1;
+    
+    for (let i = 0; i <= n; i++) {
+        bezier = vec2.scaleAndAdd_ip(bezier, points[i], nCr(n, i)*pow(t, i)*pow(1 - t, n - i));
+    }
+    return bezier;
 }
 
 function draw() {
@@ -41,7 +67,7 @@ function draw() {
     var numsteps = Number(document.getElementById("input_numsteps").value);
     for (var i = 0; i <= numsteps; ++i) {
         var t = i / numsteps;
-        legacygl.vertex2(eval_quadratic_bezier(p0, p1, p2, t));
+        legacygl.vertex2(eval_quadratic_bezier(points, t));
     }
     legacygl.end();
     // draw sample points
@@ -49,7 +75,7 @@ function draw() {
         legacygl.begin(gl.POINTS);
         for (var i = 0; i <= numsteps; ++i) {
             var t = i / numsteps;
-            legacygl.vertex2(eval_quadratic_bezier(p0, p1, p2, t));
+            legacygl.vertex2(eval_quadratic_bezier(points, t));
         }
         legacygl.end();
     }
@@ -57,14 +83,15 @@ function draw() {
     if (document.getElementById("input_show_controlpoints").checked) {
         legacygl.color(0.2, 0.5, 1);
         legacygl.begin(gl.LINE_STRIP);
-        legacygl.vertex2(p0);
-        legacygl.vertex2(p1);
-        legacygl.vertex2(p2);
+        points.forEach(element => {
+            legacygl.vertex2(element);
+        });
         legacygl.end();
+        
         legacygl.begin(gl.POINTS);
-        legacygl.vertex2(p0);
-        legacygl.vertex2(p1);
-        legacygl.vertex2(p2);
+        points.forEach(element => {
+            legacygl.vertex2(element);
+        });
         legacygl.end();
     }
 };
@@ -104,67 +131,41 @@ function init() {
     drawutil = get_drawutil(gl, legacygl);
     camera = get_camera(canvas.width);
     camera.eye = [0, 0, 7];
-    p0 = [-0.5, -0.6];
-    p1 = [1.2, 0.5];
-    p2 = [-0.4, 1.3];
+    points = [
+        [-0.5, -0.6],
+        [1.2, 0.5],
+        [-0.4, 1.3],
+    ]
     // event handlers
     canvas.onmousedown = function(evt) {
-        var mouse_win = this.get_mousepos(evt);
         if (evt.altKey) {
-            camera.start_moving(mouse_win, evt.shiftKey ? "zoom" : "pan");
-            return;
-        }
-        console.log("clicked");
-
-        // pick nearest object
-        var points = [p0, p1, p2];
-        var viewport = [0, 0, canvas.width, canvas.height];
-        var dist_min = 10000000;
-        for (var i = 0; i < 3; ++i) {
-            var object_win = glu.project([points[i][0], points[i][1], 0], 
-                                         legacygl.uniforms.modelview.value,
-                                         legacygl.uniforms.projection.value,
-                                         viewport);
-            var dist = vec2.dist(mouse_win, object_win);
-            if (dist < dist_min) {
-                dist_min = dist;
-                selected = points[i];
-            }
-        }
-    };
-    canvas.onmousemove = function(evt) {
-        var mouse_win = this.get_mousepos(evt);
-        if (camera.is_moving()) {
-            camera.move(mouse_win);
+            // 最初の3点からは点を消去できない
+            if (points.length === 3) return; 
+            points.pop();
             draw();
             return;
         }
-        if (selected != null) {
-            var viewport = [0, 0, canvas.width, canvas.height];
-            mouse_win.push(1);
-            var mouse_obj = glu.unproject(mouse_win, 
+
+        var mouse_win = this.get_mousepos(evt);
+
+        var viewport = [0, 0, canvas.width, canvas.height];
+        mouse_win.push(1);
+        var mouse_obj = glu.unproject(mouse_win, 
                                           legacygl.uniforms.modelview.value,
                                           legacygl.uniforms.projection.value,
                                           viewport);
-            // just reuse the same code as the 3D case
-            var plane_origin = [0, 0, 0];
-            var plane_normal = [0, 0, 1];
-            var eye_to_mouse = vec3.sub([], mouse_obj, camera.eye);
-            var eye_to_origin = vec3.sub([], plane_origin, camera.eye);
-            var s1 = vec3.dot(eye_to_mouse, plane_normal);
-            var s2 = vec3.dot(eye_to_origin, plane_normal);
-            var eye_to_intersection = vec3.scale([], eye_to_mouse, s2 / s1);
-            vec3.add(selected, camera.eye, eye_to_intersection);
-            draw();
-        }
+        var eye_to_mouse = vec3.sub([], mouse_obj, camera.eye);
+        var eye_to_origin = vec3.sub([], [0, 0, 0], camera.eye);
+        var s1 = vec3.dot(eye_to_mouse, [0, 0, 1]);
+        var s2 = vec3.dot(eye_to_origin, [0, 0, 1]);
+
+        var eye_to_intersection = vec3.scale([], eye_to_mouse, s2/s1);
+
+        points.push([0, 0]);
+        vec3.add(points[points.length - 1], camera.eye, eye_to_intersection);
+
+        draw();
     }
-    document.onmouseup = function (evt) {
-        if (camera.is_moving()) {
-            camera.finish_moving();
-            return;
-        }
-        selected = null;
-    };
     // init OpenGL settings
     gl.viewport(0, 0, canvas.width, canvas.height);
     gl.clearColor(1, 1, 1, 1);
@@ -173,9 +174,23 @@ function init() {
 </head>
 <body onload="init(); draw();">
   <h2><script type="text/javascript">document.write(document.getElementById("title").innerHTML);</script></h2>
+  <h3>05221014 坂宮丞太郎</h3>
   <div>
     [実装内容の説明・考察・感想]<br>
-    2次スプライン曲線を実装した。実装方法としては、
+    　n次のベジェ曲線を実装した。表示画面内をクリックすることで、新たな点をプロットし、
+    新たなベジェ曲線を引くように実装した。また、Altキーを押しながら表示画面内を
+    クリックすることで、最後にプロットした点を削除できるようになっている。<br>
+    　n次のベジェ曲線の式にはnCiのコンビネーションが含まれる。これは、
+    点の配列P_0, ..., P_i, ..., P_nの内真ん中に位置する点P_iほど他の点への影響
+    が大きくなるというベジェ曲線の性質を反映していると言える。また、t = 0の時は
+    P_0に、t = 1の時にはP_nに一致することは、n次のベジェ曲線上の点がt = 0から
+    t = 1にかけてP_0からP_nに移っていく様子を表している。<br>
+    　1年生の時に履修したCADを用いてモデリングを行う授業で、スプライン曲線を引くという
+    課題に取り組んだことがあった。その課題に取り組んだ際は、スプライン曲線の背後に潜む
+    理論については理解しておらず、点をプロットするだけでなめらかな曲線を引くことができること
+    に感動したことを覚えている。このような背景があったため、本課題に楽しんで取り組む
+    ことができた。
+
   </div>
   <canvas id="canvas" width="640" height="480" style="border:1px solid #000000"></canvas>
   <table>
@@ -194,9 +209,8 @@ function init() {
   </table>
   <h3>Usage:</h3>
   <ul>
-    <li>Drag: Move Control Points</li>
-    <li>Alt+Drag: Camera Pan</li>
-    <li>Alt+Shift+drag: Camera Zoom</li>
+    <li>Click: Add point</li>
+    <li>Alt+Click: Delete point</li>
   </ul>
 
   <div class="glitchButton" style="position:fixed;top:20px;right:20px;"></div>
