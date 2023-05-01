@@ -99,7 +99,7 @@ function draw() {
 function init() {
     // OpenGL context
     canvas = document.getElementById("canvas");
-    gl = canvas.getContext("experimental-webgl");
+    gl = canvas.getContext("experimental-webgl") || canvas.getContext("webgl");
     if (!gl)
         alert("Could not initialise WebGL, sorry :-(");
     var vertex_shader_src = "\
