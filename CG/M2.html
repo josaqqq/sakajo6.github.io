@@ -67,21 +67,21 @@
       return [v[0] - u[0], v[1] - u[1]];
     }
 
-    function decide_rad(axis_position, end_position, target_position) {
+    function decide_rad(joint_position, end_position, target_position) {
       // vectors
-      let axis_to_end = get_vector(axis_position, end_position);
-      let axis_to_target = get_vector(axis_position, target_position);
+      let joint_to_end = get_vector(joint_position, end_position);
+      let joint_to_target = get_vector(joint_position, target_position);
 
       // dist
-      let dist_axis_end = get_dist(axis_position, end_position);
-      let dist_axis_target = get_dist(axis_position, target_position);
+      let dist_joint_end = get_dist(joint_position, end_position);
+      let dist_joint_target = get_dist(joint_position, target_position);
       
       // inner product
-      let inner_product = get_inner_product(axis_to_end, axis_to_target);
+      let inner_product = get_inner_product(joint_to_end, joint_to_target);
       // outer product
-      let outer_product = get_outer_product(axis_to_end, axis_to_target);
+      let outer_product = get_outer_product(joint_to_end, joint_to_target);
 
-      let current_cos = inner_product/(dist_axis_end*dist_axis_target);
+      let current_cos = inner_product/(dist_joint_end*dist_joint_target);
       
       if (current_cos > 0.9999) {
         current_cos = 1;
@@ -101,15 +101,15 @@
       for (let k = 0; k < 10; k++) {
         for (let i = linkages.length - 2; i >= -1; i--) {
           // positions
-          var axis_position;
+          var joint_position;
           if (i == -1) {
-            axis_position = [0, 0];
+            joint_position = [0, 0];
           } else {
-            axis_position = linkages[i].position;
+            joint_position = linkages[i].position;
           }
           let end_position = linkages[linkages.length - 1].position;
 
-          let rad = decide_rad(axis_position, end_position, target_position);
+          let rad = decide_rad(joint_position, end_position, target_position);
 
           linkages[i + 1].angle += rad;
           update_position();
@@ -259,6 +259,31 @@
   <h2>
     <script>document.write(document.getElementById("title").innerHTML);</script>
   </h2>
+  <h3>坂宮丞太郎</h3>
+  <div>
+    　Inverse Kinematics(IK)をCCD法によって実装した。関節角を末端から親に向かう順番に更新し、更新回数kはk = 10とした。<br>
+    　具体的な更新方法は以下の通りとした。
+    <ol>
+      <li>"回転させる関節からend effectorへの方向ベクトル"と"回転させる関節から目標位置への方向ベクトル"の内積dotを計算する。</li>
+      <li>求めた内積dotを各ベクトルの長さで割ることでcosの値を計算する。</li>
+      <li>arccosを用いて、cosの値から角度argを求める。</li>
+      <li>角度argの値をもとに関節を回転させる。</li>
+      <li>以上を, 回転させる関節を変更しながら繰り返す。</li>
+    </ol><br>
+    　ただし、実装上以下の2点を注意した。<br>
+    　まず、arccosを用いる際は、引数が定義域[-1, 1]に収まるように以下のような判定を行った。
+    <pre>
+      <code>
+        if (current_cos > 0.9999) {
+          current_cos = 1;
+        } else if (current_cos < -0.9999) {
+          current_cos = -1;
+        }
+      </code>
+    </pre>
+    　また、各関節を回転させる方向は各ベクトルの外積を取って決定した。<br>
+    　実装したIKは、"IK mode"にチェックを入れることで用いることができる。
+  </div>
   <table>
     <tr>
       <td>
