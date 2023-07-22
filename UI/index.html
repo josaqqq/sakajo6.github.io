@@ -1,0 +1,41 @@
+<!DOCTYPE html>
+<html>
+    <head>
+        <link rel="stylesheet" href="style.css">
+        <meta name="viewport" content="width=device-width,initial-scale=1"/>
+        <title>User Interface</title>
+    </head>
+
+    <body>
+      <h2>Fit the T-Shirt</h2>
+      <table>
+        <tr>
+          <td>体型：</td>
+          <td>
+            <input type="range" min="0" max="4" value="2" id="slider">
+          </td>
+        </tr>
+        <tr>
+          <td>モード：</td>
+          <td>
+            <input type="radio" name="mode" value="Edit" onchange="changeMode(this.value)" id="edit-mode">編集
+            <input type="radio" name="mode" value="View" onchange="changeMode(this.value)">閲覧
+          </td>
+        </tr>
+        <tr>
+          <td>編集箇所：</td>
+          <td>
+            <input type="radio" name="point" value="Center" onchange="changeEditting(this.value)" id="center-editting">中心
+            <input type="radio" name="point" value="Shoulder" onchange="changeEditting(this.value)">肩幅
+            <input type="radio" name="point" value="Sleeve" onchange="changeEditting(this.value)">袖
+            <input type="radio" name="point" value="Hem" onchange="changeEditting(this.value)">裾
+            <input type="radio" name="point" value="All" onchange="changeEditting(this.value)">すべて
+          </td>
+        </tr>
+      </table>
+
+      <canvas id="canvas"></canvas>
+
+      <script src="index.js"></script>
+    </body>
+</html>

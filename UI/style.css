@@ -1,0 +1,10 @@
+div {
+    /* display: flex; */
+    justify-content: center;
+	/* font-weight: bold; */
+}
+
+#canvas {
+    display:    block;
+	height:		600px;
+}
